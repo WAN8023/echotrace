@@ -677,6 +677,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                           key: _dualReportKey,
                           databaseService: widget.databaseService,
                           rankings: _allContactRankings ?? const <ContactRanking>[],
+                          excludedUsernames: _excludedUsernames,
                           onClose: () {
                             setState(() => _showDualReportSubPage = false);
                           },
@@ -1688,12 +1689,14 @@ class _ExcludeFriendEntry {
 class _DualReportSubPage extends StatefulWidget {
   final DatabaseService databaseService;
   final List<ContactRanking> rankings;
+  final Set<String> excludedUsernames;
   final VoidCallback onClose;
 
   const _DualReportSubPage({
     super.key,
     required this.databaseService,
     required this.rankings,
+    required this.excludedUsernames,
     required this.onClose,
   });
 
@@ -2410,9 +2413,17 @@ class _DualReportSubPageState extends State<_DualReportSubPage> {
     }
 
     final query = _rankingSearchQuery.trim().toLowerCase();
+    final filteredRankings = widget.rankings
+        .where(
+          (ranking) =>
+              !widget.excludedUsernames.contains(
+                ranking.username.toLowerCase(),
+              ),
+        )
+        .toList();
     final visibleRankings = query.isEmpty
-        ? widget.rankings.take(_topN).toList()
-        : widget.rankings.where((ranking) {
+        ? filteredRankings.take(_topN).toList()
+        : filteredRankings.where((ranking) {
             final displayName = StringUtils.cleanOrDefault(
               ranking.displayName,
               ranking.username,

@@ -13,7 +13,6 @@ class AnalyticsService {
     this._databaseService, {
     Set<String>? excludedUsernames,
   }) : _excludedUsernames = {
-         'filehelper',
          ...?excludedUsernames?.map((name) => name.toLowerCase()),
        };
 

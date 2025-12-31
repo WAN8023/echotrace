@@ -65,7 +65,7 @@ class FormerFriendResult {
 class FormerFriendAnalyzer {
   final DatabaseService _databaseService;
   int? _filterYear;
-  Set<String> _excludedUsernames = {'filehelper'};
+  Set<String> _excludedUsernames = {};
 
   FormerFriendAnalyzer(
     this._databaseService, {

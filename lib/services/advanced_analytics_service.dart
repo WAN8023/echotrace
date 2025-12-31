@@ -39,7 +39,6 @@ class AdvancedAnalyticsService {
 
   // 系统账号和无效账号的黑名单，避免分析时包含无关数据
   static const _systemAccounts = {
-    'filehelper',
     'fmessage',
     'medianote',
     'newsapp',

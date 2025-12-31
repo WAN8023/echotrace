@@ -5723,7 +5723,7 @@ class DatabaseService {
           .where(
             (s) =>
                 !s.isGroup &&
-                !(excludedUsernames ?? const {'filehelper'}).contains(
+                !(excludedUsernames ?? const <String>{}).contains(
                   s.username.toLowerCase(),
                 ),
           )
@@ -5986,7 +5986,7 @@ class DatabaseService {
           .where(
             (s) =>
                 !s.isGroup &&
-                !(excludedUsernames ?? const {'filehelper'}).contains(
+                !(excludedUsernames ?? const <String>{}).contains(
                   s.username.toLowerCase(),
                 ),
           )
