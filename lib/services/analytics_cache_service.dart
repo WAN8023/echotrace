@@ -10,6 +10,7 @@ class AnalyticsCacheService {
   static const String _keyAnnualReport = 'cache_annual_report';
   static const String _keyCachedAt = 'cache_timestamp';
   static const String _keyDbModifiedTime = 'cache_db_modified_time';
+  static const int _basicAnalyticsVersion = 2;
 
   static AnalyticsCacheService get instance {
     _instance ??= AnalyticsCacheService._();
@@ -44,6 +45,12 @@ class AnalyticsCacheService {
       if (dataString == null) return null;
 
       final data = json.decode(dataString);
+      if (data is Map<String, dynamic>) {
+        final version = data['version'] as int?;
+        if (version != _basicAnalyticsVersion) {
+          return null;
+        }
+      }
       return deserializeBasicResults(data);
     } catch (e) {
       return null;
@@ -189,6 +196,7 @@ class AnalyticsCacheService {
     required List<ContactRanking>? contactRankings,
   }) {
     return {
+      'version': _basicAnalyticsVersion,
       'overallStats': overallStats?.toJson(),
       'contactRankings': contactRankings?.map((r) => r.toJson()).toList(),
     };

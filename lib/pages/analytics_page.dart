@@ -49,6 +49,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   int _topN = 10;
   bool _showAnnualReportSubPage = false;
   bool _showDualReportSubPage = false;
+  String _contactSearchQuery = '';
 
   bool get _isSubPage => _showAnnualReportSubPage || _showDualReportSubPage;
 
@@ -388,23 +389,22 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     );
 
     rankings.sort((a, b) => b.messageCount.compareTo(a.messageCount));
-    final topRankings = rankings.take(50).toList();
 
-    await logger.info('AnalyticsPage', '联系人排名完成，返回前 ${topRankings.length} 名');
-    if (topRankings.isNotEmpty) {
+    await logger.info('AnalyticsPage', '联系人排名完成，返回 ${rankings.length} 名');
+    if (rankings.isNotEmpty) {
       await logger.debug(
         'AnalyticsPage',
-        '第1名: ${topRankings[0].displayName}, 消息数: ${topRankings[0].messageCount}',
+        '第1名: ${rankings[0].displayName}, 消息数: ${rankings[0].messageCount}',
       );
-      if (topRankings.length >= 10) {
+      if (rankings.length >= 10) {
         await logger.debug(
           'AnalyticsPage',
-          '第10名: ${topRankings[9].displayName}, 消息数: ${topRankings[9].messageCount}',
+          '第10名: ${rankings[9].displayName}, 消息数: ${rankings[9].messageCount}',
         );
       }
     }
 
-    return topRankings;
+    return rankings;
   }
 
   @override
@@ -913,6 +913,20 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       return const SizedBox.shrink();
     }
 
+    final allRankings = _allContactRankings ?? _contactRankings ?? [];
+    final query = _contactSearchQuery.trim().toLowerCase();
+    final visibleRankings = query.isEmpty
+        ? allRankings.take(_topN).toList()
+        : allRankings.where((ranking) {
+            final displayName = StringUtils.cleanOrDefault(
+              ranking.displayName,
+              ranking.username,
+            );
+            final haystack =
+                '${displayName.toLowerCase()} ${ranking.username.toLowerCase()}';
+            return haystack.contains(query);
+          }).toList();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -930,6 +944,26 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const Spacer(),
+                SizedBox(
+                  width: 200,
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() => _contactSearchQuery = value);
+                    },
+                    decoration: const InputDecoration(
+                      hintText: '↑搜索好友',
+                      prefixIcon: Icon(Icons.search, size: 18),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 SegmentedButton<int>(
                   segments: const [
                     ButtonSegment<int>(value: 10, label: Text('Top 10')),
@@ -957,7 +991,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             Builder(
               builder: (context) {
                 return Column(
-                  children: _contactRankings!.asMap().entries.map((entry) {
+                  children: visibleRankings.asMap().entries.map((entry) {
                     final index = entry.key;
                     final ranking = entry.value;
                     final appState = Provider.of<AppState>(context);
@@ -1396,6 +1430,7 @@ class _DualReportSubPageState extends State<_DualReportSubPage> {
   static const _wechatGreen = Color(0xFF07C160);
 
   int _topN = 10;
+  String _rankingSearchQuery = '';
   ContactRanking? _selectedFriend;
   Map<String, dynamic>? _reportData;
   String? _reportHtml;
@@ -2099,7 +2134,18 @@ class _DualReportSubPageState extends State<_DualReportSubPage> {
       );
     }
 
-    final visibleRankings = widget.rankings.take(_topN).toList();
+    final query = _rankingSearchQuery.trim().toLowerCase();
+    final visibleRankings = query.isEmpty
+        ? widget.rankings.take(_topN).toList()
+        : widget.rankings.where((ranking) {
+            final displayName = StringUtils.cleanOrDefault(
+              ranking.displayName,
+              ranking.username,
+            );
+            final haystack =
+                '${displayName.toLowerCase()} ${ranking.username.toLowerCase()}';
+            return haystack.contains(query);
+          }).toList();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -2116,6 +2162,26 @@ class _DualReportSubPageState extends State<_DualReportSubPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const Spacer(),
+                SizedBox(
+                  width: 200,
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() => _rankingSearchQuery = value);
+                    },
+                    decoration: const InputDecoration(
+                      hintText: '↑搜索好友',
+                      prefixIcon: Icon(Icons.search, size: 18),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 SegmentedButton<int>(
                   segments: const [
                     ButtonSegment<int>(value: 10, label: Text('Top 10')),
