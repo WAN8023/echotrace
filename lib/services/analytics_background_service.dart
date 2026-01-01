@@ -44,6 +44,7 @@ class _AnalyticsTask {
   final String? filterUsername; // 如果指定，只分析特定用户
   final int? filterYear;
   final String analysisType;
+  final List<String> excludedUsernames;
   final SendPort sendPort;
   final RootIsolateToken rootIsolateToken;
 
@@ -52,6 +53,7 @@ class _AnalyticsTask {
     this.filterUsername,
     this.filterYear,
     required this.analysisType,
+    required this.excludedUsernames,
     required this.sendPort,
     required this.rootIsolateToken,
   });
@@ -82,8 +84,19 @@ typedef AnalyticsProgressCallback =
 /// 所有分析任务都在后台运行，只返回最终结果
 class AnalyticsBackgroundService {
   final String dbPath;
+  Set<String> _excludedUsernames = {};
 
-  AnalyticsBackgroundService(this.dbPath);
+  AnalyticsBackgroundService(this.dbPath, {Set<String>? excludedUsernames}) {
+    if (excludedUsernames != null) {
+      _excludedUsernames =
+          excludedUsernames.map((name) => name.toLowerCase()).toSet();
+    }
+  }
+
+  void setExcludedUsernames(Set<String> excludedUsernames) {
+    _excludedUsernames =
+        excludedUsernames.map((name) => name.toLowerCase()).toSet();
+  }
 
   /// 在后台分析作息规律
   Future<ActivityHeatmap> analyzeActivityPatternInBackground(
@@ -240,6 +253,7 @@ class AnalyticsBackgroundService {
         filterUsername: filterUsername,
         filterYear: filterYear,
         analysisType: analysisType,
+        excludedUsernames: _excludedUsernames.toList(),
         sendPort: receivePort.sendPort,
         rootIsolateToken: ServicesBinding.rootIsolateToken!,
       );
@@ -478,6 +492,15 @@ class AnalyticsBackgroundService {
             analyticsService.setYearFilter(task.filterYear);
             sendLog('设置年份过滤: ${task.filterYear}', level: 'debug');
           }
+          if (task.excludedUsernames.isNotEmpty) {
+            analyticsService.setExcludedUsernames(
+              task.excludedUsernames.toSet(),
+            );
+            sendLog(
+              '设置排除用户: ${task.excludedUsernames.length} 个',
+              level: 'debug',
+            );
+          }
 
           dynamic result;
           sendLog('开始执行分析: ${task.analysisType}', level: 'debug');
@@ -531,7 +554,10 @@ class AnalyticsBackgroundService {
             case 'who_replies_fastest':
               sendLog('========== 开始分析谁回复最快 ==========', level: 'debug');
               sendLog('创建 ResponseTimeAnalyzer', level: 'debug');
-              final analyzer = ResponseTimeAnalyzer(dbService);
+              final analyzer = ResponseTimeAnalyzer(
+                dbService,
+                excludedUsernames: task.excludedUsernames.toSet(),
+              );
               if (task.filterYear != null) {
                 analyzer.setYearFilter(task.filterYear);
                 sendLog('设置年份过滤: ${task.filterYear}', level: 'debug');
@@ -605,7 +631,10 @@ class AnalyticsBackgroundService {
             case 'my_fastest_replies':
               sendLog('========== 开始分析我回复最快 ==========', level: 'debug');
               sendLog('创建 ResponseTimeAnalyzer', level: 'debug');
-              final analyzer2 = ResponseTimeAnalyzer(dbService);
+              final analyzer2 = ResponseTimeAnalyzer(
+                dbService,
+                excludedUsernames: task.excludedUsernames.toSet(),
+              );
               if (task.filterYear != null) {
                 analyzer2.setYearFilter(task.filterYear);
                 sendLog('设置年份过滤: ${task.filterYear}', level: 'debug');
@@ -679,7 +708,10 @@ class AnalyticsBackgroundService {
             case 'former_friends':
               sendLog('========== 开始分析曾经的好朋友 ==========', level: 'debug');
               sendLog('创建 FormerFriendAnalyzer', level: 'debug');
-              final formerFriendAnalyzer = FormerFriendAnalyzer(dbService);
+              final formerFriendAnalyzer = FormerFriendAnalyzer(
+                dbService,
+                excludedUsernames: task.excludedUsernames.toSet(),
+              );
               if (task.filterYear != null) {
                 formerFriendAnalyzer.setYearFilter(task.filterYear);
                 sendLog('设置年份过滤: ${task.filterYear}', level: 'debug');

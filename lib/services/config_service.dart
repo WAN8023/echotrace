@@ -16,6 +16,8 @@ class ConfigService {
       'last_launch_pending'; // 上次是否未正常完成启动
   static const String _keyPrivacyAccepted = 'privacy_accepted'; // 隐私协议是否已同意
   static const String _keyDocumentsPath = 'documents_path'; // 自定义文档目录
+  static const String _keyAnalyticsExcludedUsernames =
+      'analytics_excluded_usernames'; // 数据分析排除名单
 
   /// 保存解密密钥
   Future<void> saveDecryptKey(String key) async {
@@ -131,6 +133,36 @@ class ConfigService {
     return prefs.getBool(_keyDebugMode) ?? false;
   }
 
+  /// 保存数据分析排除名单
+  Future<void> saveAnalyticsExcludedUsernames(List<String> usernames) async {
+    final prefs = await SharedPreferences.getInstance();
+    final normalized = usernames
+        .map((name) => name.trim().toLowerCase())
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    await prefs.setStringList(_keyAnalyticsExcludedUsernames, normalized);
+  }
+
+  /// 获取数据分析排除名单
+  Future<List<String>> getAnalyticsExcludedUsernames() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_keyAnalyticsExcludedUsernames) ?? [];
+    return list
+        .map((name) => name.trim().toLowerCase())
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+  }
+
+  /// 是否已设置数据分析排除名单
+  Future<bool> hasAnalyticsExcludedUsernames() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_keyAnalyticsExcludedUsernames);
+  }
+
   /// 标记应用启动开始（用于检测异常退出）
   Future<void> markLaunchStarted() async {
     final prefs = await SharedPreferences.getInstance();
@@ -181,5 +213,6 @@ class ConfigService {
     await prefs.remove(_keyLaunchPending);
     await prefs.remove(_keyPrivacyAccepted);
     await prefs.remove(_keyDocumentsPath);
+    await prefs.remove(_keyAnalyticsExcludedUsernames);
   }
 }

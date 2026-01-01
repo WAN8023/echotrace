@@ -33,12 +33,12 @@ import 'analytics_service.dart';
 class AdvancedAnalyticsService {
   final DatabaseService _databaseService;
   final AnalyticsService _analyticsService;
+  Set<String> _excludedUsernames = {};
 
   int? _filterYear; // 年份过滤器，null表示显示全部年份
 
   // 系统账号和无效账号的黑名单，避免分析时包含无关数据
   static const _systemAccounts = {
-    'filehelper',
     'fmessage',
     'medianote',
     'newsapp',
@@ -54,6 +54,11 @@ class AdvancedAnalyticsService {
 
   AdvancedAnalyticsService(this._databaseService)
     : _analyticsService = AnalyticsService(_databaseService);
+
+  void setExcludedUsernames(Set<String> usernames) {
+    _excludedUsernames =
+        usernames.map((name) => name.trim().toLowerCase()).toSet();
+  }
 
   /// 设置年份过滤器，用于限定分析的数据范围
   void setYearFilter(int? year) {
@@ -95,11 +100,17 @@ class AdvancedAnalyticsService {
     return false;
   }
 
+  bool _isCustomExcluded(String username) {
+    if (username.isEmpty) return false;
+    return _excludedUsernames.contains(username.toLowerCase());
+  }
+
   /// 分析作息规律（24小时×7天热力图）
   Future<ActivityHeatmap> analyzeActivityPattern() async {
     // 使用SQL直接统计，避免加载所有消息到内存
     final data = await _databaseService.getActivityHeatmapData(
       year: _filterYear,
+      excludedUsernames: _excludedUsernames,
     );
 
     // 计算最大值
@@ -121,7 +132,12 @@ class AdvancedAnalyticsService {
     final myWxid = _databaseService.currentAccountWxid;
     final normalizedMyWxid = myWxid?.toLowerCase();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .where((s) {
           final username = s.username.toLowerCase();
           if (username == 'filehelper') return false;
@@ -346,7 +362,12 @@ class AdvancedAnalyticsService {
     final myWxid = _databaseService.currentAccountWxid;
     final normalizedMyWxid = myWxid?.toLowerCase();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .where((s) {
           final username = s.username.toLowerCase();
           if (username == 'filehelper') return false;
@@ -407,7 +428,12 @@ class AdvancedAnalyticsService {
     final myWxid = _databaseService.currentAccountWxid;
     final normalizedMyWxid = myWxid?.toLowerCase();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .where((s) {
           final username = s.username.toLowerCase();
           if (username == 'filehelper') return false;
@@ -556,7 +582,12 @@ class AdvancedAnalyticsService {
     final myWxid = _databaseService.currentAccountWxid;
     final normalizedMyWxid = myWxid?.toLowerCase();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .where((s) {
           final username = s.username.toLowerCase();
           if (username == 'filehelper') return false;
@@ -625,7 +656,12 @@ class AdvancedAnalyticsService {
     final myWxid = _databaseService.currentAccountWxid;
     final normalizedMyWxid = myWxid?.toLowerCase();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .where((s) {
           final username = s.username.toLowerCase();
           if (username == 'filehelper') return false;
@@ -702,7 +738,12 @@ class AdvancedAnalyticsService {
     final myWxid = _databaseService.currentAccountWxid;
     final normalizedMyWxid = myWxid?.toLowerCase();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .where((s) {
           final username = s.username.toLowerCase();
           if (username == 'filehelper') return false;
@@ -778,7 +819,12 @@ class AdvancedAnalyticsService {
     final myWxid = _databaseService.currentAccountWxid;
     final normalizedMyWxid = myWxid?.toLowerCase();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .where((s) {
           final username = s.username.toLowerCase();
           if (username == 'filehelper') return false;
@@ -869,7 +915,12 @@ class AdvancedAnalyticsService {
   Future<List<FriendshipRanking>> getMutualFriendsRanking(int limit) async {
     final sessions = await _databaseService.getSessions();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .toList();
 
     final balanceList = <Map<String, dynamic>>[];
@@ -941,7 +992,12 @@ class AdvancedAnalyticsService {
     final myWxid = _databaseService.currentAccountWxid;
     final normalizedMyWxid = myWxid?.toLowerCase();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .where((s) {
           final username = s.username.toLowerCase();
           if (username == 'filehelper') return false;
@@ -1027,7 +1083,12 @@ class AdvancedAnalyticsService {
     final myWxid = _databaseService.currentAccountWxid;
     final normalizedMyWxid = myWxid?.toLowerCase();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .where((s) {
           final username = s.username.toLowerCase();
           if (username == 'filehelper') return false;
@@ -1130,7 +1191,12 @@ class AdvancedAnalyticsService {
     final myWxid = _databaseService.currentAccountWxid;
     final normalizedMyWxid = myWxid?.toLowerCase();
     final privateSessions = sessions
-        .where((s) => !s.isGroup && !_isSystemAccount(s.username))
+        .where(
+          (s) =>
+              !s.isGroup &&
+              !_isSystemAccount(s.username) &&
+              !_isCustomExcluded(s.username),
+        )
         .where((s) {
           final username = s.username.toLowerCase();
           if (username == 'filehelper') return false;
@@ -1150,7 +1216,10 @@ class AdvancedAnalyticsService {
 
     // 批量获取所有会话的消息日期
     final allSessionsDates = await _databaseService
-        .getAllPrivateSessionsMessageDates(filterYear: _filterYear);
+        .getAllPrivateSessionsMessageDates(
+          filterYear: _filterYear,
+          excludedUsernames: _excludedUsernames,
+        );
 
     int globalMaxStreak = 0;
     String? bestFriendUsername;
@@ -1221,6 +1290,7 @@ class AdvancedAnalyticsService {
   Future<List<MessageTypeStats>> analyzeMessageTypeDistribution() async {
     final typeCount = await _databaseService.getAllMessageTypeDistribution(
       filterYear: _filterYear,
+      excludedUsernames: _excludedUsernames,
     );
 
     if (typeCount.isEmpty) return [];
@@ -1289,6 +1359,7 @@ class AdvancedAnalyticsService {
   Future<MessageLengthData> analyzeMessageLength() async {
     final stats = await _databaseService.getTextMessageLengthStats(
       year: _filterYear,
+      excludedUsernames: _excludedUsernames,
     );
 
     final averageLength = stats['averageLength'] as double;

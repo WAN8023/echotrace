@@ -30,7 +30,21 @@ class _FriendSelectionPageState extends State<FriendSelectionPage> {
   void initState() {
     super.initState();
     _analyticsService = AdvancedAnalyticsService(widget.databaseService);
-    _loadFriendList();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final appState = context.read<AppState>();
+      final excluded =
+          await appState.configService.getAnalyticsExcludedUsernames();
+      final normalized = excluded.map((e) => e.toLowerCase()).toSet();
+      normalized.add('filehelper');
+      final myWxid =
+          widget.databaseService.currentAccountWxid ??
+          await appState.configService.getManualWxid();
+      if (myWxid != null && myWxid.isNotEmpty) {
+        normalized.add(myWxid.toLowerCase());
+      }
+      _analyticsService.setExcludedUsernames(normalized);
+      _loadFriendList();
+    });
   }
 
   /// 加载好友列表（按聊天数量排序）

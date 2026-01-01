@@ -57,8 +57,14 @@ class ResponseTimeResult {
 class ResponseTimeAnalyzer {
   final DatabaseService _databaseService;
   int? _filterYear;
+  final Set<String> _excludedUsernames;
 
-  ResponseTimeAnalyzer(this._databaseService);
+  ResponseTimeAnalyzer(
+    this._databaseService, {
+    Set<String>? excludedUsernames,
+  }) : _excludedUsernames = {
+         ...?excludedUsernames?.map((name) => name.toLowerCase()),
+       };
 
   void setYearFilter(int? year) {
     _filterYear = year;
@@ -80,6 +86,7 @@ class ResponseTimeAnalyzer {
     final sqlResults = await _databaseService.analyzeResponseSpeed(
       isMyResponse: false, // 对方回复我
       year: _filterYear,
+      excludedUsernames: _excludedUsernames,
       onProgress: onProgress,
       onLog: onLog,
     );
@@ -127,6 +134,7 @@ class ResponseTimeAnalyzer {
     final sqlResults = await _databaseService.analyzeResponseSpeed(
       isMyResponse: true, // 我回复对方
       year: _filterYear,
+      excludedUsernames: _excludedUsernames,
       onProgress: onProgress,
       onLog: onLog,
     );

@@ -10,6 +10,7 @@ class AnalyticsCacheService {
   static const String _keyAnnualReport = 'cache_annual_report';
   static const String _keyCachedAt = 'cache_timestamp';
   static const String _keyDbModifiedTime = 'cache_db_modified_time';
+  static const int _basicAnalyticsVersion = 3;
 
   static AnalyticsCacheService get instance {
     _instance ??= AnalyticsCacheService._();
@@ -22,6 +23,7 @@ class AnalyticsCacheService {
   Future<void> saveBasicAnalytics({
     required ChatStatistics? overallStats,
     required List<ContactRanking>? contactRankings,
+    required List<String> excludedUsernames,
     required int dbModifiedTime,
   }) async {
     try {
@@ -29,6 +31,7 @@ class AnalyticsCacheService {
       final data = serializeBasicResults(
         overallStats: overallStats,
         contactRankings: contactRankings,
+        excludedUsernames: excludedUsernames,
       );
       await prefs.setString(_keyBasicAnalytics, json.encode(data));
       await prefs.setString(_keyCachedAt, DateTime.now().toIso8601String());
@@ -44,6 +47,12 @@ class AnalyticsCacheService {
       if (dataString == null) return null;
 
       final data = json.decode(dataString);
+      if (data is Map<String, dynamic>) {
+        final version = data['version'] as int?;
+        if (version != _basicAnalyticsVersion) {
+          return null;
+        }
+      }
       return deserializeBasicResults(data);
     } catch (e) {
       return null;
@@ -187,10 +196,14 @@ class AnalyticsCacheService {
   static Map<String, dynamic> serializeBasicResults({
     required ChatStatistics? overallStats,
     required List<ContactRanking>? contactRankings,
+    required List<String> excludedUsernames,
   }) {
     return {
+      'version': _basicAnalyticsVersion,
       'overallStats': overallStats?.toJson(),
       'contactRankings': contactRankings?.map((r) => r.toJson()).toList(),
+      'excludedUsernames':
+          excludedUsernames.map((e) => e.trim().toLowerCase()).toList(),
     };
   }
 
@@ -207,6 +220,11 @@ class AnalyticsCacheService {
                 .map((r) => ContactRanking.fromJson(r))
                 .toList()
           : null,
+      'excludedUsernames': data['excludedUsernames'] is List
+          ? (data['excludedUsernames'] as List)
+                .map((e) => e.toString())
+                .toList()
+          : <String>[],
     };
   }
 }

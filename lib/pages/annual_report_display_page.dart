@@ -19,6 +19,7 @@ class AnnualReportDisplayPage extends StatefulWidget {
   final VoidCallback? onClose;
   final bool autoStart;
   final Future<bool> Function()? onBeforeGenerate;
+  final Set<String> excludedUsernames;
 
   const AnnualReportDisplayPage({
     super.key,
@@ -28,6 +29,7 @@ class AnnualReportDisplayPage extends StatefulWidget {
     this.onClose,
     this.autoStart = true,
     this.onBeforeGenerate,
+    this.excludedUsernames = const {},
   });
 
   @override
@@ -55,6 +57,9 @@ class _AnnualReportDisplayPageState extends State<AnnualReportDisplayPage> {
   int _totalProgress = 0;
   int? _dbModifiedTime;
 
+  Set<String> get _normalizedExcludedUsernames =>
+      widget.excludedUsernames.map((e) => e.trim().toLowerCase()).toSet();
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +84,9 @@ class _AnnualReportDisplayPageState extends State<AnnualReportDisplayPage> {
     // 每次初始化时都重新创建后台服务，确保使用最新的数据库路径
     if (dbPath != null) {
       _backgroundService = AnalyticsBackgroundService(dbPath);
+      if (_normalizedExcludedUsernames.isNotEmpty) {
+        _backgroundService!.setExcludedUsernames(_normalizedExcludedUsernames);
+      }
     } else {}
 
     // 获取数据库修改时间
@@ -105,6 +113,16 @@ class _AnnualReportDisplayPageState extends State<AnnualReportDisplayPage> {
       final cachedData = await AnnualReportCacheService.loadReport(widget.year);
       if (cachedData != null) {
         await logger.info('AnnualReportPage', '找到缓存数据，检查时间戳');
+        final cachedExcluded =
+            (cachedData['excludedUsernames'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            <String>[];
+        final cachedExcludedSet =
+            cachedExcluded.map((e) => e.trim().toLowerCase()).toSet();
+        final excludedChanged =
+            cachedExcludedSet.length != _normalizedExcludedUsernames.length ||
+            !cachedExcludedSet.containsAll(_normalizedExcludedUsernames);
         // 检查数据库是否有更新
         final cachedDbTime = cachedData['dbModifiedTime'] as int?;
         await logger.info(
@@ -114,9 +132,12 @@ class _AnnualReportDisplayPageState extends State<AnnualReportDisplayPage> {
         final dbChanged =
             cachedDbTime == null || cachedDbTime < _dbModifiedTime!;
 
-        if (dbChanged) {
+        if (dbChanged || excludedChanged) {
           // 数据库已更新，询问用户
-          await logger.info('AnnualReportPage', '数据库已更新，显示确认对话框');
+          await logger.info(
+            'AnnualReportPage',
+            '缓存已过期，显示确认对话框',
+          );
           if (!mounted) return;
           final shouldRegenerate = await _showDatabaseChangedDialog();
 
@@ -240,6 +261,8 @@ class _AnnualReportDisplayPageState extends State<AnnualReportDisplayPage> {
 
       // 保存数据库修改时间
       data['dbModifiedTime'] = _dbModifiedTime;
+      data['excludedUsernames'] =
+          _normalizedExcludedUsernames.toList()..sort();
       await logger.debug('AnnualReportPage', '保存数据库修改时间: $_dbModifiedTime');
 
       // 保存到缓存

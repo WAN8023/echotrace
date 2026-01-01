@@ -2205,7 +2205,10 @@ class DatabaseService {
   }
 
   /// 快速获取所有会话的消息类型分布（SQL直接统计）
-  Future<Map<int, int>> getAllMessageTypeDistribution({int? filterYear}) async {
+  Future<Map<int, int>> getAllMessageTypeDistribution({
+    int? filterYear,
+    Set<String>? excludedUsernames,
+  }) async {
     if (_sessionDb == null) {
       throw Exception('数据库未连接');
     }
@@ -2226,6 +2229,8 @@ class DatabaseService {
 
       // 使用缓存的数据库连接
       final cachedDbs = await _getCachedMessageDatabases();
+      final excludedTables =
+          await _getExcludedTableNames(excludedUsernames, cachedDbs);
 
       // 从所有数据库查询并累加
       for (final dbInfo in cachedDbs) {
@@ -2238,6 +2243,7 @@ class DatabaseService {
           // 统计每个表的消息类型
           for (final table in tables) {
             final tableName = table['name'] as String;
+            if (excludedTables.contains(tableName)) continue;
             try {
               final result = await dbInfo.database.rawQuery('''
                 SELECT local_type, COUNT(*) as count
@@ -5219,6 +5225,39 @@ class DatabaseService {
     return result;
   }
 
+  Future<Set<String>> _getExcludedTableNames(
+    Set<String>? excludedUsernames,
+    List<_CachedDatabaseInfo> cachedDbs,
+  ) async {
+    if (excludedUsernames == null || excludedUsernames.isEmpty) {
+      return {};
+    }
+
+    final normalized = excludedUsernames
+        .map((name) => name.trim().toLowerCase())
+        .where((name) => name.isNotEmpty)
+        .toSet();
+    if (normalized.isEmpty) return {};
+
+    final excludedTables = <String>{};
+    for (final cachedDb in cachedDbs) {
+      for (final username in normalized) {
+        try {
+          final tableName = await _getMessageTableName(
+            username,
+            cachedDb.database,
+          );
+          if (tableName != null && tableName.isNotEmpty) {
+            excludedTables.add(tableName);
+          }
+        } catch (_) {
+          // 忽略单个用户查询失败
+        }
+      }
+    }
+    return excludedTables;
+  }
+
   /// 通用的跨数据库查询辅助方法
   Future<List<_DatabaseTableInfo>> _collectTableInfosAcrossDatabases(
     String sessionId, {
@@ -5277,6 +5316,7 @@ class DatabaseService {
   Future<Map<int, Map<int, int>>> getActivityHeatmapData({
     int? year,
     List<String>? sessionIds,
+    Set<String>? excludedUsernames,
   }) async {
     if (!isConnected) {
       throw Exception('数据库未连接');
@@ -5293,6 +5333,8 @@ class DatabaseService {
 
     try {
       final cachedDbs = await _getCachedMessageDatabases();
+      final excludedTables =
+          await _getExcludedTableNames(excludedUsernames, cachedDbs);
 
       for (final cachedDb in cachedDbs) {
         try {
@@ -5303,6 +5345,7 @@ class DatabaseService {
 
           for (final tableRow in tables) {
             final tableName = tableRow['name'] as String;
+            if (excludedTables.contains(tableName)) continue;
 
             // 如果指定了sessionIds，只查询这些会话
             String whereClause = '';
@@ -5654,6 +5697,7 @@ class DatabaseService {
   /// 返回格式：{username: [date1, date2, ...]}
   Future<Map<String, Set<String>>> getAllPrivateSessionsMessageDates({
     int? filterYear,
+    Set<String>? excludedUsernames,
   }) async {
     if (!isConnected) {
       throw Exception('数据库未连接');
@@ -5674,13 +5718,14 @@ class DatabaseService {
       }
 
       // 获取所有私聊会话
-      const excludedUsernames = {'filehelper'};
       final sessions = await getSessions();
       final privateSessions = sessions
           .where(
             (s) =>
                 !s.isGroup &&
-                !excludedUsernames.contains(s.username.toLowerCase()),
+                !(excludedUsernames ?? const <String>{}).contains(
+                  s.username.toLowerCase(),
+                ),
           )
           .toList();
 
@@ -5786,13 +5831,18 @@ class DatabaseService {
   }
 
   /// 获取文本消息长度统计
-  Future<Map<String, dynamic>> getTextMessageLengthStats({int? year}) async {
+  Future<Map<String, dynamic>> getTextMessageLengthStats({
+    int? year,
+    Set<String>? excludedUsernames,
+  }) async {
     if (!isConnected) {
       throw Exception('数据库未连接');
     }
 
     try {
       final cachedDbs = await _getCachedMessageDatabases();
+      final excludedTables =
+          await _getExcludedTableNames(excludedUsernames, cachedDbs);
 
       int totalLength = 0;
       int textMessageCount = 0;
@@ -5817,6 +5867,7 @@ class DatabaseService {
 
           for (final tableRow in tables) {
             final tableName = tableRow['name'] as String;
+            if (excludedTables.contains(tableName)) continue;
 
             // 统计总长度和数量
             final statsResult = await cachedDb.database.rawQuery(
@@ -5896,6 +5947,7 @@ class DatabaseService {
   Future<List<Map<String, dynamic>>> analyzeResponseSpeed({
     required bool isMyResponse, // true: 我回复对方, false: 对方回复我
     int? year,
+    Set<String>? excludedUsernames,
     Function(int current, int total, String currentUser)? onProgress,
     Function(String message, {String level})? onLog,
   }) async {
@@ -5930,7 +5982,15 @@ class DatabaseService {
       await log('年份过滤: ${year ?? "无"}', level: 'debug');
 
       final sessions = await getSessions();
-      final privateSessions = sessions.where((s) => !s.isGroup).toList();
+      final privateSessions = sessions
+          .where(
+            (s) =>
+                !s.isGroup &&
+                !(excludedUsernames ?? const <String>{}).contains(
+                  s.username.toLowerCase(),
+                ),
+          )
+          .toList();
       await log('找到 ${privateSessions.length} 个私聊会话', level: 'info');
 
       // 批量获取显示名称

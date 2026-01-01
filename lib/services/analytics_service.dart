@@ -7,9 +7,14 @@ import 'logger_service.dart';
 /// 数据分析服务
 class AnalyticsService {
   final DatabaseService _databaseService;
-  static const _excludedUsernames = {'filehelper'};
+  final Set<String> _excludedUsernames;
 
-  AnalyticsService(this._databaseService);
+  AnalyticsService(
+    this._databaseService, {
+    Set<String>? excludedUsernames,
+  }) : _excludedUsernames = {
+         ...?excludedUsernames?.map((name) => name.toLowerCase()),
+       };
 
   bool _isExcludedUsername(String username) {
     if (username.isEmpty) return false;

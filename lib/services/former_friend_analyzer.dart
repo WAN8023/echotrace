@@ -65,9 +65,18 @@ class FormerFriendResult {
 class FormerFriendAnalyzer {
   final DatabaseService _databaseService;
   int? _filterYear;
-  static const _excludedUsernames = {'filehelper'};
+  Set<String> _excludedUsernames = {};
 
-  FormerFriendAnalyzer(this._databaseService);
+  FormerFriendAnalyzer(
+    this._databaseService, {
+    Set<String>? excludedUsernames,
+  }) {
+    if (excludedUsernames != null && excludedUsernames.isNotEmpty) {
+      _excludedUsernames.addAll(
+        excludedUsernames.map((name) => name.toLowerCase()),
+      );
+    }
+  }
 
   bool _isExcludedUsername(String username) {
     if (username.isEmpty) return false;
