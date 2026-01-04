@@ -54,6 +54,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   String _contactSearchQuery = '';
   Set<String> _excludedUsernames = {};
   bool _autoLoadScheduled = false;
+  bool _showAllMessageTypes = false;
 
   bool get _isSubPage => _showAnnualReportSubPage || _showDualReportSubPage;
 
@@ -1283,6 +1284,15 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   Widget _buildMessageTypeChart() {
     final stats = _overallStats!;
     final distribution = stats.messageTypeDistribution;
+    final sortedEntries = distribution.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final totalForDistribution =
+        distribution.values.fold<int>(0, (sum, count) => sum + count);
+    final hasMoreTypes = sortedEntries.length > 5;
+    final visibleEntries = sortedEntries.take(5).toList();
+    final extraEntries = hasMoreTypes
+        ? sortedEntries.sublist(5)
+        : <MapEntry<String, int>>[];
 
     return Card(
       child: Padding(
@@ -1295,9 +1305,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            ...distribution.entries.map((entry) {
-              final percentage = stats.totalMessages > 0
-                  ? (entry.value / stats.totalMessages * 100).toStringAsFixed(1)
+            ...visibleEntries.map((entry) {
+              final percentage = totalForDistribution > 0
+                  ? (entry.value / totalForDistribution * 100)
+                      .toStringAsFixed(1)
                   : '0.0';
 
               return Padding(
@@ -1306,18 +1317,41 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   children: [
                     SizedBox(width: 60, child: Text(entry.key)),
                     Expanded(
-                      child: LinearProgressIndicator(
-                        value: stats.totalMessages > 0
-                            ? entry.value / stats.totalMessages
-                            : 0,
-                        backgroundColor: Colors.grey[200],
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final ratio = totalForDistribution > 0
+                              ? entry.value / totalForDistribution
+                              : 0.0;
+                          final barWidth = constraints.maxWidth * ratio;
+                          return Stack(
+                            children: [
+                              Container(
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              Container(
+                                height: 4,
+                                width: barWidth,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
                       width: 80,
                       child: Text(
-                        '${entry.value} ($percentage%)',
+                        '${entry.value}\n($percentage%)',
                         textAlign: TextAlign.right,
                       ),
                     ),
@@ -1325,6 +1359,102 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 ),
               );
             }),
+            if (hasMoreTypes) ...[
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
+                child: _showAllMessageTypes
+                    ? Column(
+                        key: const ValueKey('extra_types'),
+                        children: extraEntries.map((entry) {
+                          final percentage = totalForDistribution > 0
+                              ? (entry.value / totalForDistribution * 100)
+                                  .toStringAsFixed(1)
+                              : '0.0';
+
+                          return Padding(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                SizedBox(width: 60, child: Text(entry.key)),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final ratio = totalForDistribution > 0
+                                          ? entry.value / totalForDistribution
+                                          : 0.0;
+                                      final barWidth =
+                                          constraints.maxWidth * ratio;
+                                      return Stack(
+                                        children: [
+                                          Container(
+                                            height: 4,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[200],
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                          ),
+                                          Container(
+                                            height: 4,
+                                            width: barWidth,
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 80,
+                                  child: Text(
+                                    '${entry.value}\n($percentage%)',
+                                    textAlign: TextAlign.right,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: () {
+                    setState(
+                      () => _showAllMessageTypes = !_showAllMessageTypes,
+                    );
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _showAllMessageTypes
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(_showAllMessageTypes ? '收起' : '展开'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
