@@ -43,6 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
+
+# Android/Gradle caches
+/third_party/flutter_lame/android/.gradle/
 
 # Go 解密模块
 go_decrypt/go.sum
